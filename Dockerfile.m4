@@ -23,7 +23,7 @@ WORKDIR /tmp/nss_synth/
 RUN git clone "${NSS_SYNTH_REMOTE:?}" ./
 RUN git checkout "${NSS_SYNTH_TREEISH:?}"
 RUN git submodule update --init --recursive
-RUN cargo build --release
+RUN cargo build --release --jobs 1
 
 # Create rootfs
 RUN mkdir /mnt/rootfs/
