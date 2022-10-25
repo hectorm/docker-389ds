@@ -1,35 +1,47 @@
 m4_changequote([[, ]])
 
+ARG FEDORA_VERSION=37
+ARG RUST_VERSION=1
+
 ##################################################
-## "rootfs" stage
+## "nss_synth-native" stage
 ##################################################
 
-m4_ifdef([[CROSS_ARCH]], [[FROM docker.io/CROSS_ARCH/fedora:37]], [[FROM docker.io/fedora:37]]) AS rootfs
-m4_ifdef([[CROSS_QEMU]], [[COPY --from=docker.io/hectorm/qemu-user-static:latest CROSS_QEMU CROSS_QEMU]])
+FROM docker.io/rust:${RUST_VERSION} AS nss_synth-native
+ARG RUST_VERSION
 
-RUN dnf -y install \
-		ca-certificates \
-		cargo \
-		findutils \
-		git \
-		rust \
-	&& dnf clean all
-
-# Build nss_synth
 ARG NSS_SYNTH_TREEISH=v0.1.0
 ARG NSS_SYNTH_REMOTE=https://github.com/kanidm/nss_synth.git
-RUN mkdir /tmp/nss_synth/
 WORKDIR /tmp/nss_synth/
 RUN git clone "${NSS_SYNTH_REMOTE:?}" ./
 RUN git checkout "${NSS_SYNTH_TREEISH:?}"
 RUN git submodule update --init --recursive
-RUN cargo build --release --jobs 1
+RUN cargo fetch --verbose
 
-# Create rootfs
-RUN mkdir /mnt/rootfs/
+##################################################
+## "nss_synth-cross" stage
+##################################################
+
+m4_ifdef([[CROSS_REGISTRY_ARCH]], [[FROM docker.io/CROSS_REGISTRY_ARCH/rust:${RUST_VERSION}]], [[FROM docker.io/rust:${RUST_VERSION}]]) AS nss_synth-cross
+m4_ifdef([[CROSS_QEMU]], [[COPY --from=docker.io/hectorm/qemu-user-static:latest CROSS_QEMU CROSS_QEMU]])
+ARG RUST_VERSION
+
+WORKDIR /tmp/nss_synth/
+COPY --from=nss_synth-native ${CARGO_HOME}/registry/ ${CARGO_HOME}/registry/
+COPY --from=nss_synth-native /tmp/nss_synth/ ./
+RUN cargo build --verbose --offline --release
+
+##################################################
+## "rootfs" stage
+##################################################
+
+FROM docker.io/fedora:${FEDORA_VERSION} AS rootfs
+ARG FEDORA_VERSION
+
 WORKDIR /mnt/rootfs/
-RUN RELEASEVER=$(awk -F= '$1=="VERSION_ID"{print($2)}' /etc/os-release) \
-	&& dnf -y --installroot "${PWD:?}" --releasever "${RELEASEVER:?}" --setopt 'install_weak_deps=false' --nodocs install \
+
+RUN m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=/mnt/rootfs/CROSS_QEMU]]) \
+	dnf -y --installroot "${PWD:?}" --setopt install_weak_deps=false --nodocs --releasever "${FEDORA_VERSION:?}" m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
 		389-ds-base \
 		ca-certificates \
 		coreutils-single \
@@ -37,21 +49,23 @@ RUN RELEASEVER=$(awk -F= '$1=="VERSION_ID"{print($2)}' /etc/os-release) \
 		openldap-clients \
 		tzdata \
 	&& dnf --installroot "${PWD:?}" clean all
-RUN cp /tmp/nss_synth/target/release/libnss_synth.so "${PWD:?}"/usr/lib64/libnss_synth.so.2
-RUN sed -i 's/^\(passwd\|group\):.*$/\1: compat synth/;s|^\(shadow\):.*$|\1: compat|' "${PWD:?}"/etc/nsswitch.conf
-RUN mkdir -p "${PWD:?}"/data/ "${PWD:?}"/etc/dirsrv/ "${PWD:?}"/var/run/
-RUN ln -s /data/config/ "${PWD:?}"/etc/dirsrv/slapd-localhost
-RUN ln -s /data/ssca/ "${PWD:?}"/etc/dirsrv/ssca
-RUN ln -s /data/run/ "${PWD:?}"/var/run/dirsrv
-RUN find "${PWD:?}"/data/ "${PWD:?}"/etc/dirsrv/ -type d -exec chmod 0777 '{}' ';'
-RUN find "${PWD:?}"/data/ "${PWD:?}"/etc/dirsrv/ -type f -exec chmod 0666 '{}' ';'
-RUN find "${PWD:?}"/var/cache/ "${PWD:?}"/var/log/ "${PWD:?}"/tmp/ -mindepth 1 -delete
+
+COPY --from=nss_synth-cross /tmp/nss_synth/target/release/libnss_synth.so ./usr/lib64/libnss_synth.so.2
+RUN sed -i 's/^\(passwd\|group\):.*$/\1: compat synth/;s/^\(shadow\):.*$/\1: compat/' ./etc/nsswitch.conf
+
+RUN mkdir -p ./data/ ./etc/dirsrv/ ./var/run/
+RUN ln -s /data/config/ ./etc/dirsrv/slapd-localhost
+RUN ln -s /data/ssca/ ./etc/dirsrv/ssca
+RUN ln -s /data/run/ ./var/run/dirsrv
+RUN chmod -R 0777 ./data/
+
+RUN rm -rf ./var/cache/* ./var/log/* ./tmp/*
 
 ##################################################
-## "base" stage
+## "main" stage
 ##################################################
 
-FROM scratch AS base
+FROM scratch AS main
 
 COPY --from=rootfs /mnt/rootfs/ /
 
@@ -66,28 +80,20 @@ EXPOSE 3389/tcp 3636/tcp
 HEALTHCHECK --start-period=5m --timeout=5s --interval=5s --retries=2 \
 	CMD ["/usr/libexec/dirsrv/dscontainer", "--healthcheck"]
 
-ENTRYPOINT ["/usr/libexec/dirsrv/dscontainer"]
-CMD ["--runit"]
+ENTRYPOINT [""]
+CMD ["/usr/libexec/dirsrv/dscontainer", "--runit"]
 
-##################################################
-## "test" stage
-##################################################
-
-FROM base AS test
-m4_ifdef([[CROSS_QEMU]], [[COPY --from=docker.io/hectorm/qemu-user-static:latest CROSS_QEMU CROSS_QEMU]])
-
-# Switch to unprivileged user
-RUN chown -R 3389:3389 /data/
-USER 3389:3389
-
-# Run tests
-ENV DS_DM_PASSWORD=H4!b5at+kWls-8yh4Guq
-ENV DS_SUFFIX_NAME=dc=dirsrv,dc=test
-ENV DS_STARTUP_TIMEOUT=600
-ENV LDAPTLS_REQCERT=demand
-ENV LDAPTLS_CACERT=/data/config/Self-Signed-CA.pem
-RUN { /usr/libexec/dirsrv/dscontainer --runit & } \
-	&& timeout 600 sh -euc 'until /usr/libexec/dirsrv/dscontainer --healthcheck; do sleep 1; done' \
+USER 10389:10389
+RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
+	m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=CROSS_QEMU]]) \
+	printf '%s\n' '========== START OF TEST RUN ==========' \
+	&& export DS_DM_PASSWORD=H4!b5at+kWls-8yh4Guq \
+	&& export DS_SUFFIX_NAME=dc=dirsrv,dc=test \
+	&& export DS_STARTUP_TIMEOUT=900 \
+	&& export LDAPTLS_REQCERT=demand \
+	&& export LDAPTLS_CACERT=/data/config/Self-Signed-CA.pem \
+	&& { /usr/libexec/dirsrv/dscontainer --runit & } \
+	&& timeout 900 sh -euc 'until /usr/libexec/dirsrv/dscontainer --healthcheck; do sleep 1; done' \
 	&& timeout 300 sh -euc 'until ldapwhoami -x -H "ldaps://localhost:3636" -D "cn=Directory Manager" -w "${DS_DM_PASSWORD:?}"; do sleep 1; done' \
 	&& dsconf localhost backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' \
 	&& dsconf localhost config replace 'nsslapd-dynamic-plugins=on' \
@@ -107,13 +113,6 @@ RUN { /usr/libexec/dirsrv/dscontainer --runit & } \
 		dsidm localhost user create --uid "${u:?}" --cn "${u:?}" --displayName "${u:?}" --uidNumber '-1' --gidNumber '-1' --homeDirectory '/' \
 		&& dsidm localhost account reset_password "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" 'password' \
 		&& ldapwhoami -x -H 'ldaps://localhost:3636' -D "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" -w 'password'; \
-	done
-
-##################################################
-## "main" stage
-##################################################
-
-FROM base AS main
-
-# Dummy instruction so BuildKit does not skip the test stage
-RUN --mount=type=bind,from=test,source=/mnt/,target=/mnt/
+	done; \
+	printf '%s\n' '========== END OF TEST RUN =========='
+USER 0:0
