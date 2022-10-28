@@ -65,7 +65,7 @@ RUN rm -rf ./var/cache/* ./var/log/* ./tmp/*
 ## "main" stage
 ##################################################
 
-FROM scratch AS main
+m4_ifdef([[CROSS_REGISTRY_ARCH]], [[FROM docker.io/hectorm/scratch:CROSS_REGISTRY_ARCH]], [[FROM scratch]]) AS main
 
 COPY --from=rootfs /mnt/rootfs/ /
 
