@@ -1,0 +1,57 @@
+version: "3.9"
+
+services:
+
+  389ds:
+    image: "docker.io/hectorm/389ds:latest"
+    restart: "on-failure"
+    container_name: "389ds"
+    hostname: "389ds"
+    networks:
+      - "389ds"
+    ports:
+      - "127.0.0.1:3389:3389/tcp"
+      - "127.0.0.1:3636:3636/tcp"
+    volumes:
+      - "389ds-data:/data/"
+    environment:
+      DS_DM_PASSWORD: "${DS_DM_PASSWORD:-password}"
+      DS_SUFFIX_NAME: "${DS_SUFFIX_NAME:-dc=example,dc=test}"
+    healthcheck:
+      test: ["CMD", "/usr/libexec/dirsrv/dscontainer", "--healthcheck"]
+      start_period: "5m"
+      interval: "10s"
+      timeout: "5s"
+      retries: 2
+
+  389ds-init:
+    image: "docker.io/hectorm/389ds:latest"
+    restart: "on-failure"
+    container_name: "389ds-init"
+    hostname: "389ds-init"
+    networks:
+      - "389ds"
+    volumes:
+      - "./init.sh:/init.sh:ro"
+    environment:
+      DS_DM_PASSWORD: "${DS_DM_PASSWORD:-password}"
+      DS_SUFFIX_NAME: "${DS_SUFFIX_NAME:-dc=example,dc=test}"
+      DS_INITIAL_USERS: |- # USERNAME:FIRSTNAME:LASTNAME:PASSWORD
+        alice:Alice:Williams:password
+        bob:Bob:Roberts:password
+        carol:Carol:Wallace:password
+    entrypoint: "/bin/sh"
+    command: "/init.sh"
+    depends_on:
+      389ds:
+        condition: "service_healthy"
+
+volumes:
+
+  389ds-data:
+    name: "389ds-data"
+
+networks:
+
+  389ds:
+    name: "389ds"
