@@ -16,7 +16,7 @@ if _dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' >/
 	# Require TLS
 	#_dsconf config replace 'nsslapd-require-secure-binds=on'
 
-	# Enable dyanmic plugins
+	# Enable dynamic plugins
 	_dsconf config replace 'nsslapd-dynamic-plugins=on'
 
 	# Enable Referential Integrity Postoperation plugin
