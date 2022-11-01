@@ -17,12 +17,6 @@ services:
     environment:
       DS_DM_PASSWORD: "${DS_DM_PASSWORD:-password}"
       DS_SUFFIX_NAME: "${DS_SUFFIX_NAME:-dc=example,dc=test}"
-    healthcheck:
-      test: ["CMD", "/usr/libexec/dirsrv/dscontainer", "--healthcheck"]
-      start_period: "5m"
-      interval: "10s"
-      timeout: "5s"
-      retries: 2
 
   389ds-init:
     image: "docker.io/hectorm/389ds:latest"

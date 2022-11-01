@@ -51,7 +51,7 @@ if _dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' >/
 	_IFS=${IFS}; IFS=$(printf '\nx'); IFS=${IFS%x}
 	for entry in ${DS_INITIAL_USERS?}; do
 		for var in user firstname lastname password; do
-			eval "${var:?}=\${entry%%:*}"; entry=${entry#*:}
+			eval ${var:?}='${entry%%:*}'; entry=${entry#*:}
 		done
 		_dsidm user create \
 			--uid "${user:?}" \
