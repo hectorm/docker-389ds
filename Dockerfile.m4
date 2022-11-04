@@ -80,7 +80,6 @@ EXPOSE 3389/tcp 3636/tcp
 HEALTHCHECK --start-period=5m --timeout=5s --interval=5s --retries=2 \
 	CMD ["/usr/libexec/dirsrv/dscontainer", "--healthcheck"]
 
-ENTRYPOINT [""]
 CMD ["/usr/libexec/dirsrv/dscontainer", "--runit"]
 
 USER 10389:10389
