@@ -64,4 +64,19 @@ if _dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' >/
 		_dsidm account reset_password "uid=${user:?},ou=people,${DS_SUFFIX_NAME:?}" "${password:?}"
 	done
 	IFS=$_IFS
+
+	# Create groups
+	_IFS=${IFS}; IFS=$(printf '\nx'); IFS=${IFS%x}
+	for entry in ${DS_INITIAL_GROUPS?}; do
+		for var in group users; do
+			eval ${var:?}='${entry%%:*}'; entry=${entry#*:}
+		done
+		_dsidm group create --cn "${group:?}"
+		__IFS=${IFS}; IFS=','
+		for user in ${users?}; do
+			_dsidm group add_member "${group:?}" "uid=${user:?},ou=people,${DS_SUFFIX_NAME:?}"
+		done
+		IFS=$__IFS
+	done
+	IFS=$_IFS
 fi

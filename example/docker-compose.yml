@@ -38,6 +38,8 @@ services:
         alice:Alice:Williams:password
         bob:Bob:Roberts:password
         carol:Carol:Wallace:password
+      DS_INITIAL_GROUPS: |- # GROUPNAME[:USERNAME,USERNAME...]
+        employee:alice,bob,carol
     entrypoint: "/bin/sh"
     command: "/init.sh"
     depends_on:
