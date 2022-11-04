@@ -14,6 +14,9 @@ services:
       - "127.0.0.1:3636:3636/tcp"
     volumes:
       - "389ds-data:/data/"
+      - "./certs/ca/cert.pem:/data/tls/ca/ca.crt:ro"
+      - "./certs/server/key.pem:/data/tls/server.key:ro"
+      - "./certs/server/cert.pem:/data/tls/server.crt:ro"
     environment:
       DS_DM_PASSWORD: "${DS_DM_PASSWORD:-password}"
       DS_SUFFIX_NAME: "${DS_SUFFIX_NAME:-dc=example,dc=test}"
@@ -27,6 +30,7 @@ services:
       - "389ds"
     volumes:
       - "./init.sh:/init.sh:ro"
+      - "./certs/ca/cert.pem:/data/tls/ca/ca.crt:ro"
     environment:
       DS_DM_PASSWORD: "${DS_DM_PASSWORD:-password}"
       DS_SUFFIX_NAME: "${DS_SUFFIX_NAME:-dc=example,dc=test}"
