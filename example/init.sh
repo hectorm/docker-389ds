@@ -11,7 +11,7 @@ else
 fi
 
 # Wait until LDAP server is available
-until _dsconf monitor server; do sleep 1; done
+until _dsconf monitor server; do sleep 1; done; sleep 5
 
 # Ensure that the backend is initialized
 if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
