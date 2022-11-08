@@ -14,7 +14,7 @@ fi
 until _dsconf monitor server; do sleep 1; done
 
 # Ensure that the backend is initialized
-if ! _dsconf backend suffix get "${DS_SUFFIX_NAME:?}" >/dev/null 2>&1; then
+if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
 	# Create backend
 	_dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot'
 
