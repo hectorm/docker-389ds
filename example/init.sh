@@ -52,7 +52,7 @@ if ! _dsconf backend suffix get "${DS_SUFFIX_NAME:?}" >/dev/null 2>&1; then
 
 	# Create users
 	_IFS=${IFS}; IFS=$(printf '\nx'); IFS=${IFS%x}
-	for entry in ${DS_INITIAL_USERS?}; do
+	for entry in ${DS_INITIAL_USERS-}; do
 		for var in user firstname lastname password; do
 			eval ${var:?}='${entry%%:*}'; entry=${entry#*:}
 		done
@@ -67,7 +67,7 @@ if ! _dsconf backend suffix get "${DS_SUFFIX_NAME:?}" >/dev/null 2>&1; then
 
 	# Create groups
 	_IFS=${IFS}; IFS=$(printf '\nx'); IFS=${IFS%x}
-	for entry in ${DS_INITIAL_GROUPS?}; do
+	for entry in ${DS_INITIAL_GROUPS-}; do
 		for var in group users; do
 			eval ${var:?}='${entry%%:*}'; entry=${entry#*:}
 		done
