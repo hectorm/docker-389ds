@@ -69,8 +69,8 @@ m4_ifdef([[CROSS_REGISTRY_ARCH]], [[FROM docker.io/hectorm/scratch:CROSS_REGISTR
 
 COPY --from=rootfs /mnt/rootfs/ /
 
-# ENV DS_DM_PASSWORD=password
 # ENV DS_SUFFIX_NAME=dc=example,dc=com
+# ENV DS_DM_PASSWORD=password
 # ENV DS_STARTUP_TIMEOUT=60
 # ENV DS_ERRORLOG_LEVEL=266354688
 # ENV DS_REINDEX=1
@@ -86,8 +86,8 @@ USER 10389:10389
 RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
 	m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=CROSS_QEMU]]) \
 	printf '%s\n' '========== START OF TEST RUN ==========' \
-	&& export DS_DM_PASSWORD=H4!b5at+kWls-8yh4Guq \
 	&& export DS_SUFFIX_NAME=dc=dirsrv,dc=test \
+	&& export DS_DM_PASSWORD=H4!b5at+kWls-8yh4Guq \
 	&& export DS_STARTUP_TIMEOUT=900 \
 	&& export LDAPTLS_REQCERT=demand \
 	&& export LDAPTLS_CACERT=/data/config/Self-Signed-CA.pem \

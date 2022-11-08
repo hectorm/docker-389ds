@@ -1,18 +1,18 @@
 #!/bin/sh
 
-set -eux
+set -eu
 
-export LDAPTLS_REQCERT=demand
-export LDAPTLS_CACERT=/data/tls/ca/ca.crt
-
-_dsconf() { dsconf -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" 'ldaps://389ds:3636' "$@"; }
-_dsidm() { dsidm -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -b "${DS_SUFFIX_NAME:?}" 'ldaps://389ds:3636' "$@"; }
+_dsconf() { dsconf -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" "${DS_URI:?}" "$@"; }
+_dsidm() { dsidm -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -b "${DS_SUFFIX_NAME:?}" "${DS_URI:?}" "$@"; }
 
 # Wait until LDAP server is available
-until ldapwhoami -x -H 'ldaps://389ds:3636' -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}"; do sleep 1; done
+until _dsconf monitor server; do sleep 1; done
 
-# Ensure the userRoot backend is initialized
-if _dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' >/dev/null 2>&1; then
+# Ensure that the backend is initialized
+if ! _dsconf backend suffix get "${DS_SUFFIX_NAME:?}" >/dev/null 2>&1; then
+	# Create backend
+	_dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot'
+
 	# Disable anonymous access
 	_dsconf config replace 'nsslapd-allow-anonymous-access=off'
 
