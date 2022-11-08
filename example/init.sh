@@ -2,8 +2,13 @@
 
 set -eu
 
-_dsconf() { dsconf -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" "${DS_URI:?}" "$@"; }
-_dsidm() { dsidm -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -b "${DS_SUFFIX_NAME:?}" "${DS_URI:?}" "$@"; }
+if [ "${DS_URI:?}" = 'localhost' ]; then
+	_dsconf() { dsconf localhost "$@"; }
+	_dsidm() { dsidm localhost "$@"; }
+else
+	_dsconf() { dsconf -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" "${DS_URI:?}" "$@"; }
+	_dsidm() { dsidm -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -b "${DS_SUFFIX_NAME:?}" "${DS_URI:?}" "$@"; }
+fi
 
 # Wait until LDAP server is available
 until _dsconf monitor server; do sleep 1; done
