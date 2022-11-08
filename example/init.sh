@@ -66,6 +66,7 @@ if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
 			--cn "${firstname:?} ${lastname:?}" \
 			--displayName "${firstname:?} ${lastname:?}" \
 			--uidNumber '-1' --gidNumber '-1' --homeDirectory "/home/${user:?}"
+		_dsidm user modify "${user:?}" 'add:objectclass:nsMemberOf'
 		_dsidm account reset_password "uid=${user:?},ou=people,${DS_SUFFIX_NAME:?}" "${password:?}"
 	done
 	IFS=$_IFS
