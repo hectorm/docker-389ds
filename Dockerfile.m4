@@ -85,7 +85,8 @@ CMD ["/usr/libexec/dirsrv/dscontainer", "--runit"]
 USER 10389:10389
 RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
 	m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=CROSS_QEMU]]) \
-	printf '%s\n' '========== START OF TEST RUN ==========' \
+	set -eu \
+	&& { printf '%s\n' '========== START OF TEST RUN =========='; set -x; } \
 	&& export DS_SUFFIX_NAME=dc=dirsrv,dc=test \
 	&& export DS_DM_PASSWORD=H4!b5at+kWls-8yh4Guq \
 	&& export DS_STARTUP_TIMEOUT=900 \
@@ -93,7 +94,7 @@ RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
 	&& export LDAPTLS_CACERT=/data/config/Self-Signed-CA.pem \
 	&& { /usr/libexec/dirsrv/dscontainer --runit & } \
 	&& timeout 900 sh -euc 'until /usr/libexec/dirsrv/dscontainer --healthcheck; do sleep 1; done' \
-	&& timeout 300 sh -euc 'until ldapwhoami -x -H "ldaps://localhost:3636" -D "cn=Directory Manager" -w "${DS_DM_PASSWORD:?}"; do sleep 1; done' \
+	&& timeout 300 sh -euc 'until dsconf localhost monitor server; do sleep 1; done; sleep 5' \
 	&& dsconf localhost backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' \
 	&& dsconf localhost config replace 'nsslapd-dynamic-plugins=on' \
 	&& dsconf localhost plugin attr-uniq add 'UID and GID uniqueness' \
@@ -112,6 +113,6 @@ RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
 		dsidm localhost user create --uid "${u:?}" --cn "${u:?}" --displayName "${u:?}" --uidNumber '-1' --gidNumber '-1' --homeDirectory '/' \
 		&& dsidm localhost account reset_password "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" 'password' \
 		&& ldapwhoami -x -H 'ldaps://localhost:3636' -D "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" -w 'password'; \
-	done; \
-	printf '%s\n' '========== END OF TEST RUN =========='
+	done \
+	&& { set +x; printf '%s\n' '========== END OF TEST RUN =========='; }
 USER 0:0
