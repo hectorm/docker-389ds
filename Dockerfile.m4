@@ -59,7 +59,7 @@ RUN ln -s /data/ssca/ ./etc/dirsrv/ssca
 RUN ln -s /data/run/ ./var/run/dirsrv
 RUN chmod -R 0777 ./data/
 
-RUN rm -rf ./var/cache/* ./var/log/* ./tmp/*
+RUN rm -rf ./dev/* ./tmp/* ./var/cache/* ./var/lib/dnf/* ./var/log/*
 
 ##################################################
 ## "main" stage
