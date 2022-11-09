@@ -10,7 +10,7 @@ ARG RUST_VERSION=1
 FROM docker.io/rust:${RUST_VERSION} AS nss_synth-native
 ARG RUST_VERSION
 
-ARG NSS_SYNTH_TREEISH=v0.1.0
+ARG NSS_SYNTH_TREEISH=7c23049d6f576cede12d8217e710bcf9da0fc3d5 # v0.1.0
 ARG NSS_SYNTH_REMOTE=https://github.com/kanidm/nss_synth.git
 WORKDIR /tmp/nss_synth/
 RUN git clone "${NSS_SYNTH_REMOTE:?}" ./
