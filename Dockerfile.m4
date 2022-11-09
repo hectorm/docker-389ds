@@ -40,6 +40,7 @@ ARG FEDORA_VERSION
 
 WORKDIR /mnt/rootfs/
 
+# Install packages in rootfs
 RUN m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=/mnt/rootfs/CROSS_QEMU]]) \
 	dnf -y --installroot "${PWD:?}" --setopt install_weak_deps=false --nodocs --releasever "${FEDORA_VERSION:?}" m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
 		389-ds-base \
@@ -50,15 +51,21 @@ RUN m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-use
 		tzdata \
 	&& dnf --installroot "${PWD:?}" clean all
 
+# Install nss_synth to support arbitrary UIDs and GIDs
 COPY --from=nss_synth-cross /tmp/nss_synth/target/release/libnss_synth.so ./usr/lib64/libnss_synth.so.2
 RUN sed -i 's/^\(passwd\|group\):.*$/\1: compat synth/;s/^\(shadow\):.*$/\1: compat/' ./etc/nsswitch.conf
 
+# Patch instance setup script to use DS_STARTUP_TIMEOUT environment variable if available
+RUN sed -ri 's|(timeout)=([0-9]+)|\1=int(os.getenv("DS_STARTUP_TIMEOUT", \2))|g' ./usr/lib/python*/site-packages/lib389/instance/setup.py
+
+# Prepare data directory
 RUN mkdir -p ./data/ ./etc/dirsrv/ ./var/run/
 RUN ln -s /data/config/ ./etc/dirsrv/slapd-localhost
 RUN ln -s /data/ssca/ ./etc/dirsrv/ssca
 RUN ln -s /data/run/ ./var/run/dirsrv
 RUN chmod -R 0777 ./data/
 
+# Clean rootfs
 RUN rm -rf ./dev/* ./tmp/* ./var/cache/* ./var/lib/dnf/* ./var/log/*
 
 ##################################################
