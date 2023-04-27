@@ -1,6 +1,6 @@
 m4_changequote([[, ]])
 
-ARG FEDORA_VERSION=37
+ARG FEDORA_VERSION=38
 ARG RUST_VERSION=1
 
 ##################################################
