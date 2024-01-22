@@ -7,7 +7,7 @@ ARG RUST_VERSION=1
 ## "nss_synth-native" stage
 ##################################################
 
-FROM docker.io/rust:${RUST_VERSION} AS nss_synth-native
+FROM --platform=${BUILDPLATFORM} docker.io/rust:${RUST_VERSION} AS nss_synth-native
 ARG RUST_VERSION
 
 ARG NSS_SYNTH_TREEISH=7c23049d6f576cede12d8217e710bcf9da0fc3d5 # v0.1.0
@@ -35,7 +35,7 @@ RUN cargo build --verbose --offline --release
 ## "rootfs" stage
 ##################################################
 
-FROM docker.io/fedora:${FEDORA_VERSION} AS rootfs
+FROM --platform=${BUILDPLATFORM} docker.io/fedora:${FEDORA_VERSION} AS rootfs
 ARG FEDORA_VERSION
 
 WORKDIR /mnt/rootfs/
