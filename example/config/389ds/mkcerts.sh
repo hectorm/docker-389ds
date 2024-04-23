@@ -41,26 +41,11 @@ export LC_ALL='C'
 	SERVER_RENEW_PREHOOK=''
 	SERVER_RENEW_POSTHOOK=''
 
-	# CLIENT_KEY="${CERTS_DIR:?}"/client/key.pem
-	# CLIENT_CSR="${CERTS_DIR:?}"/client/csr.pem
-	# CLIENT_CRT="${CERTS_DIR:?}"/client/cert.pem
-	# CLIENT_CRT_CNF="${CERTS_DIR:?}"/client/openssl.cnf
-	# CLIENT_CRT_CA="${CERTS_DIR:?}"/client/ca.pem
-	# CLIENT_CRT_FULLCHAIN="${CERTS_DIR:?}"/client/fullchain.pem
-	# CLIENT_CRT_SUBJ='/CN=alice'
-	# CLIENT_CRT_VALIDITY_DAYS='7300'
-	# CLIENT_CRT_RENOVATION_DAYS='30'
-	# CLIENT_P12="${CERTS_DIR:?}"/client/cert.p12
-	# CLIENT_P12_PASS='changeit'
-	# CLIENT_RENEW_PREHOOK=''
-	# CLIENT_RENEW_POSTHOOK=''
-
 	set +a
 }
 
 if [ ! -e "${CERTS_DIR:?}"/ca/ ]; then mkdir -p "${CERTS_DIR:?}"/ca/; fi
 if [ ! -e "${CERTS_DIR:?}"/server/ ]; then mkdir -p "${CERTS_DIR:?}"/server/; fi
-# if [ ! -e "${CERTS_DIR:?}"/client/ ]; then mkdir -p "${CERTS_DIR:?}"/client/; fi
 
 # Generate CA private key if it does not exist
 if [ ! -e "${CA_KEY:?}" ] \
@@ -155,58 +140,3 @@ then
 		sh -euc "${SERVER_RENEW_POSTHOOK:?}"
 	fi
 fi
-
-# Generate client private key if it does not exist
-# if [ ! -e "${CLIENT_KEY:?}" ] \
-# 	|| ! openssl ecparam -check -in "${CLIENT_KEY:?}" -noout >/dev/null 2>&1
-# then
-# 	printf '%s\n' 'Generating client private key...'
-# 	openssl ecparam -genkey -name prime256v1 -out "${CLIENT_KEY:?}"
-# fi
-
-# Generate client certificate if it does not exist or will expire soon
-# if [ ! -e "${CLIENT_CRT:?}" ] \
-# 	|| [ "$(openssl x509 -pubkey -in "${CLIENT_CRT:?}" -noout 2>/dev/null)" != "$(openssl pkey -pubout -in "${CLIENT_KEY:?}" -outform PEM 2>/dev/null)" ] \
-# 	|| ! openssl verify -CAfile "${CA_CRT:?}" "${CLIENT_CRT:?}" >/dev/null 2>&1 \
-# 	|| ! openssl x509 -checkend "$((60*60*24*CLIENT_CRT_RENOVATION_DAYS))" -in "${CLIENT_CRT:?}" -noout >/dev/null 2>&1
-# then
-# 	if [ -n "${CLIENT_RENEW_PREHOOK?}" ]; then
-# 		sh -euc "${CLIENT_RENEW_PREHOOK:?}"
-# 	fi
-#
-# 	printf '%s\n' 'Generating client certificate...'
-# 	openssl req -new \
-# 		-key "${CLIENT_KEY:?}" \
-# 		-out "${CLIENT_CSR:?}" \
-# 		-subj "${CLIENT_CRT_SUBJ:?}"
-# 	cat > "${CLIENT_CRT_CNF:?}" <<-EOF
-# 		[ x509_exts ]
-# 		basicConstraints = critical,CA:FALSE
-# 		keyUsage = critical,digitalSignature
-# 		extendedKeyUsage = critical,clientAuth
-# 	EOF
-# 	openssl x509 -req \
-# 		-in "${CLIENT_CSR:?}" \
-# 		-out "${CLIENT_CRT:?}" \
-# 		-CA "${CA_CRT:?}" \
-# 		-CAkey "${CA_KEY:?}" \
-# 		-CAserial "${CA_SRL:?}" -CAcreateserial \
-# 		-days "${CLIENT_CRT_VALIDITY_DAYS:?}" \
-# 		-sha256 \
-# 		-extfile "${CLIENT_CRT_CNF:?}" \
-# 		-extensions x509_exts
-# 	openssl x509 -in "${CLIENT_CRT:?}" -fingerprint -noout
-#
-# 	cat "${CA_CRT:?}" > "${CLIENT_CRT_CA:?}"
-# 	cat "${CLIENT_CRT:?}" "${CLIENT_CRT_CA:?}" > "${CLIENT_CRT_FULLCHAIN:?}"
-#
-# 	openssl pkcs12 -export \
-# 		-inkey "${CLIENT_KEY:?}" \
-# 		-in "${CLIENT_CRT:?}" \
-# 		-out "${CLIENT_P12:?}" \
-# 		-passout "pass:${CLIENT_P12_PASS:?}"
-#
-# 	if [ -n "${CLIENT_RENEW_POSTHOOK?}" ]; then
-# 		sh -euc "${CLIENT_RENEW_POSTHOOK:?}"
-# 	fi
-# fi

@@ -1,1 +1,2 @@
-/certs/
+/config/389ds/certs/*
+!/config/389ds/certs/.gitkeep

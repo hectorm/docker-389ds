@@ -1,0 +1,64 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/master/schema/compose-spec.json
+name: "389ds"
+
+# https://hub.docker.com/r/hectorm/389ds
+x-389ds-image: &389ds-image "docker.io/hectorm/389ds:latest"
+
+services:
+
+  389ds:
+    image: *389ds-image
+    restart: "always"
+    container_name: "389ds"
+    hostname: "389ds"
+    networks:
+      - "389ds"
+    ports:
+      - "127.0.0.1:3389:3389/tcp"
+      - "127.0.0.1:3636:3636/tcp"
+    volumes:
+      - { type: "bind", source: "./config/389ds/certs/ca/cert.pem", target: "/data/tls/ca/ca.crt", read_only: true }
+      - { type: "bind", source: "./config/389ds/certs/server/key.pem", target: "/data/tls/server.key", read_only: true }
+      - { type: "bind", source: "./config/389ds/certs/server/cert.pem", target: "/data/tls/server.crt", read_only: true }
+      - { type: "volume", source: "389ds-data", target: "/data/" }
+    environment: &389ds-environment
+      DS_SUFFIX_NAME: "${DS_SUFFIX_NAME:-dc=example,dc=localhost}"
+      DS_DM_PASSWORD: "${DS_DM_PASSWORD:-password}"
+
+  389ds-init:
+    image: *389ds-image
+    restart: "on-failure"
+    container_name: "389ds-init"
+    hostname: "389ds-init"
+    networks:
+      - "389ds"
+    volumes:
+      - { type: "bind", source: "./config/389ds/init.sh", target: "/init.sh", read_only: true }
+      - { type: "bind", source: "./config/389ds/certs/ca/cert.pem", target: "/data/tls/ca/ca.crt", read_only: true }
+    environment:
+      <<: *389ds-environment
+      LDAPTLS_REQCERT: "demand"
+      LDAPTLS_CACERT: "/data/tls/ca/ca.crt"
+      DS_URI: "ldaps://389ds:3636"
+      DS_INITIAL_USERS: |- # USERNAME:FIRSTNAME:LASTNAME:PASSWORD
+        alice:Alice:Williams:password
+        bob:Bob:Roberts:password
+        carol:Carol:Wallace:password
+      DS_INITIAL_GROUPS: |- # GROUPNAME[:USERNAME,USERNAME...]
+        employee:alice,bob,carol
+    entrypoint: "/bin/sh"
+    command: "/init.sh"
+    depends_on:
+      389ds:
+        condition: "service_healthy"
+
+volumes:
+
+  389ds-data:
+    name: "389ds-data"
+
+networks:
+
+  389ds:
+    name: "389ds"
+    internal: false
