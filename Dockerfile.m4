@@ -102,7 +102,7 @@ RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
 	&& { /usr/libexec/dirsrv/dscontainer --runit & } \
 	&& timeout 900 sh -euc 'until /usr/libexec/dirsrv/dscontainer --healthcheck; do sleep 1; done' \
 	&& timeout 300 sh -euc 'until dsconf localhost monitor server; do sleep 1; done; sleep 5' \
-	&& dsconf localhost backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' \
+	&& dsconf localhost backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' --create-suffix --create-entries \
 	&& dsconf localhost config replace 'nsslapd-dynamic-plugins=on' \
 	&& dsconf localhost plugin attr-uniq add 'UID and GID uniqueness' \
 		--attr-name 'uidNumber' 'gidNumber' \
@@ -115,10 +115,9 @@ RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
 		--next-value '50000' \
 		--scope "${DS_SUFFIX_NAME:?}" \
 	&& dsconf localhost plugin dna enable \
-	&& dsidm localhost initialise \
 	&& for u in 'alice' 'bob' 'carol'; do \
-		dsidm localhost user create --uid "${u:?}" --cn "${u:?}" --displayName "${u:?}" --uidNumber '-1' --gidNumber '-1' --homeDirectory '/' \
-		&& dsidm localhost account reset_password "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" 'password' \
+		dsidm -b "${DS_SUFFIX_NAME:?}" localhost user create --uid "${u:?}" --cn "${u:?}" --displayName "${u:?}" --uidNumber '-1' --gidNumber '-1' --homeDirectory '/' \
+		&& dsidm -b "${DS_SUFFIX_NAME:?}" localhost account reset_password "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" 'password' \
 		&& ldapwhoami -x -H 'ldaps://localhost:3636' -D "uid=${u:?},ou=people,${DS_SUFFIX_NAME:?}" -w 'password'; \
 	done \
 	&& { set +x; printf '%s\n' '========== END OF TEST RUN =========='; }

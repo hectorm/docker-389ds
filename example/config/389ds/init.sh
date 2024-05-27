@@ -4,7 +4,7 @@ set -eu
 
 if [ "${DS_URI:?}" = 'localhost' ]; then
 	_dsconf() { dsconf localhost "$@"; }
-	_dsidm() { dsidm localhost "$@"; }
+	_dsidm() { dsidm -b "${DS_SUFFIX_NAME:?}" localhost "$@"; }
 else
 	_dsconf() { dsconf -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" "${DS_URI:?}" "$@"; }
 	_dsidm() { dsidm -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -b "${DS_SUFFIX_NAME:?}" "${DS_URI:?}" "$@"; }
@@ -16,7 +16,7 @@ until _dsconf monitor server; do sleep 1; done; sleep 5
 # Ensure that the backend is initialized
 if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
 	# Create backend
-	_dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot'
+	_dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' --create-suffix --create-entries
 
 	# Disable anonymous access
 	_dsconf config replace 'nsslapd-allow-anonymous-access=off'
@@ -47,9 +47,6 @@ if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
 		--next-value '50000' \
 		--scope "${DS_SUFFIX_NAME:?}"
 	_dsconf plugin dna enable
-
-	# Initialise domain
-	_dsidm initialise
 
 	# Remove sample data
 	yes 'Yes I am sure' | _dsidm user delete "uid=demo_user,ou=people,${DS_SUFFIX_NAME:?}"
