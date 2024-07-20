@@ -23,7 +23,6 @@ RUN cargo fetch --verbose
 ##################################################
 
 m4_ifdef([[CROSS_REGISTRY_ARCH]], [[FROM docker.io/CROSS_REGISTRY_ARCH/rust:${RUST_VERSION}]], [[FROM docker.io/rust:${RUST_VERSION}]]) AS nss_synth-cross
-m4_ifdef([[CROSS_QEMU]], [[COPY --from=docker.io/hectorm/qemu-user-static:latest CROSS_QEMU CROSS_QEMU]])
 ARG RUST_VERSION
 
 WORKDIR /tmp/nss_synth/
@@ -41,8 +40,7 @@ ARG FEDORA_VERSION
 WORKDIR /mnt/rootfs/
 
 # Install packages in rootfs
-RUN m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=/mnt/rootfs/CROSS_QEMU]]) \
-	dnf -y --installroot "${PWD:?}" --setopt install_weak_deps=false --nodocs --releasever "${FEDORA_VERSION:?}" m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
+RUN dnf -y --installroot "${PWD:?}" --setopt install_weak_deps=false --nodocs --releasever "${FEDORA_VERSION:?}" m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
 		389-ds-base \
 		ca-certificates \
 		coreutils-single \
@@ -91,7 +89,6 @@ CMD ["/usr/libexec/dirsrv/dscontainer", "--runit"]
 
 USER 10389:10389
 RUN --mount=type=tmpfs,target=/data/ --mount=type=tmpfs,target=/tmp/ \
-	m4_ifdef([[CROSS_QEMU]], [[--mount=type=bind,from=docker.io/hectorm/qemu-user-static:latest,source=CROSS_QEMU,target=CROSS_QEMU]]) \
 	set -eu \
 	&& { printf '%s\n' '========== START OF TEST RUN =========='; set -x; } \
 	&& export DS_SUFFIX_NAME=dc=dirsrv,dc=test \
