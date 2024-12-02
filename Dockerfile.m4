@@ -1,6 +1,6 @@
 m4_changequote([[, ]])
 
-ARG FEDORA_VERSION=40
+ARG FEDORA_VERSION=41
 ARG RUST_VERSION=1
 
 ##################################################
@@ -40,7 +40,13 @@ ARG FEDORA_VERSION
 WORKDIR /mnt/rootfs/
 
 # Install packages in rootfs
-RUN dnf -y --installroot "${PWD:?}" --setopt install_weak_deps=false --nodocs --releasever "${FEDORA_VERSION:?}" m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
+RUN dnf -y \
+	--use-host-config \
+	--installroot "${PWD:?}" \
+	--releasever "${FEDORA_VERSION:?}" \
+	--setopt install_weak_deps=false \
+	--nodocs \
+	m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
 		389-ds-base \
 		ca-certificates \
 		coreutils-single \
