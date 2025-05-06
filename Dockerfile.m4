@@ -1,6 +1,6 @@
 m4_changequote([[, ]])
 
-ARG FEDORA_VERSION=41
+ARG STREAM_VERSION=10
 ARG RUST_VERSION=1
 
 ##################################################
@@ -34,20 +34,20 @@ RUN cargo build --verbose --offline --release
 ## "rootfs" stage
 ##################################################
 
-FROM --platform=${BUILDPLATFORM} docker.io/fedora:${FEDORA_VERSION} AS rootfs
-ARG FEDORA_VERSION
+FROM --platform=${BUILDPLATFORM} quay.io/centos/centos:stream${STREAM_VERSION} AS rootfs
+ARG STREAM_VERSION
 
 WORKDIR /mnt/rootfs/
 
 # Install packages in rootfs
 RUN dnf -y \
-	--use-host-config \
 	--installroot "${PWD:?}" \
-	--releasever "${FEDORA_VERSION:?}" \
+	--releasever "${STREAM_VERSION:?}" \
 	--setopt install_weak_deps=false \
 	--nodocs \
 	m4_ifdef([[CROSS_DNF_ARCH]], [[--forcearch CROSS_DNF_ARCH]]) install \
 		389-ds-base \
+		authselect-libs \
 		ca-certificates \
 		coreutils-single \
 		glibc-minimal-langpack \
@@ -57,7 +57,7 @@ RUN dnf -y \
 
 # Install nss_synth to support arbitrary UIDs and GIDs
 COPY --from=nss_synth-cross /tmp/nss_synth/target/release/libnss_synth.so ./usr/lib64/libnss_synth.so.2
-RUN sed -i 's/^\(passwd\|group\):.*$/\1: compat synth/;s/^\(shadow\):.*$/\1: compat/' ./etc/nsswitch.conf
+RUN sed -i 's/^\(passwd\|group\):.*$/\1: compat synth/;s/^\(shadow\):.*$/\1: compat/' ./etc/authselect/nsswitch.conf
 
 # Patch instance setup script to use DS_STARTUP_TIMEOUT environment variable if available
 RUN sed -ri 's|(timeout)=([0-9]+)|\1=int(os.getenv("DS_STARTUP_TIMEOUT", \2))|g' ./usr/lib/python*/site-packages/lib389/instance/setup.py
