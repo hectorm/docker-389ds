@@ -5,19 +5,18 @@ set -eu
 if [ "${DS_URI:?}" = 'localhost' ]; then
 	_dsconf() { dsconf localhost "$@"; }
 	_dsidm() { dsidm -b "${DS_SUFFIX_NAME:?}" localhost "$@"; }
+	_ldapsearch() { ldapsearch -H 'ldapi://%2fdata%2frun%2fslapd-localhost.socket' -Y EXTERNAL -o ldif-wrap=no -LLL "$@"; }
 else
 	_dsconf() { dsconf -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" "${DS_URI:?}" "$@"; }
 	_dsidm() { dsidm -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -b "${DS_SUFFIX_NAME:?}" "${DS_URI:?}" "$@"; }
+	_ldapsearch() { ldapsearch -H "${DS_URI:?}" -x -D 'cn=Directory Manager' -w "${DS_DM_PASSWORD:?}" -o ldif-wrap=no -LLL "$@"; }
 fi
 
 # Wait until LDAP server is available
 until _dsconf monitor server; do sleep 1; done; sleep 5
 
-# Ensure that the backend is initialized
-if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
-	# Create backend
-	_dsconf backend create --suffix "${DS_SUFFIX_NAME:?}" --be-name 'userRoot' --create-suffix --create-entries
-
+# Bootstrap the directory
+if ! _ldapsearch -b 'o=bootstrap' -s base '1.1' >/dev/null 2>&1; then
 	# Disable anonymous access
 	_dsconf config replace 'nsslapd-allow-anonymous-access=off'
 
@@ -48,9 +47,9 @@ if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
 		--scope "${DS_SUFFIX_NAME:?}"
 	_dsconf plugin dna enable
 
-	# Remove sample data
-	yes 'Yes I am sure' | _dsidm user delete "uid=demo_user,ou=people,${DS_SUFFIX_NAME:?}"
-	yes 'Yes I am sure' | _dsidm group delete "cn=demo_group,ou=groups,${DS_SUFFIX_NAME:?}"
+	# Create organizational units
+	_dsidm ou create --ou 'people'
+	_dsidm ou create --ou 'groups'
 
 	# Create users
 	_IFS=${IFS}; IFS=$(printf '\nx'); IFS=${IFS%x}
@@ -81,4 +80,7 @@ if ! _dsconf monitor backend 'userRoot' >/dev/null 2>&1; then
 		IFS=$__IFS
 	done
 	IFS=$_IFS
+
+	# Mark the directory as bootstrapped
+	_dsconf backend create --suffix 'o=bootstrap' --be-name 'bootstrap' --create-suffix
 fi
